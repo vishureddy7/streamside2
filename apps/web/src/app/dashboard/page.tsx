@@ -1,9 +1,10 @@
 'use client'
 
-import { useSession, authClient } from '@/lib/auth-client'
-import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useSession, authClient } from '@/lib/auth-client'
+import { IconVideo, IconCopy, IconCheck, IconPlayerRecord, IconLogout } from '@tabler/icons-react'
 
 interface Studio {
     id: string
@@ -26,8 +27,8 @@ export default function Dashboard() {
     const [newStudioName, setNewStudioName] = useState('')
     const [isCreating, setIsCreating] = useState(false)
     const [isSigningOut, setIsSigningOut] = useState(false)
+    const [copiedId, setCopiedId] = useState<string | null>(null)
 
-    // Redirect to sign in if not authenticated
     useEffect(() => {
         if (!isPending && !session) {
             router.push('/auth/signin')
@@ -44,7 +45,7 @@ export default function Dashboard() {
         enabled: !!session && !isPending,
     })
 
-    const createStudio = async (e: React.FormEvent) => {
+    const handleCreateStudio = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!newStudioName.trim()) return
 
@@ -53,136 +54,248 @@ export default function Dashboard() {
             const res = await fetch('/api/studios', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newStudioName }),
+                body: JSON.stringify({ name: newStudioName.trim() }),
             })
-
-            if (res.ok) {
-                setNewStudioName('')
-                refetch()
-            }
+            if (!res.ok) throw new Error('Failed to create studio')
+            setNewStudioName('')
+            refetch()
         } catch (error) {
-            console.error('Failed to create studio:', error)
+            console.error('Error creating studio:', error)
         } finally {
             setIsCreating(false)
         }
     }
 
     const handleSignOut = async () => {
+        setIsSigningOut(true)
         try {
-            setIsSigningOut(true)
             await authClient.signOut()
             router.push('/auth/signin')
         } catch (error) {
-            console.error('Failed to sign out:', error)
-        } finally {
+            console.error('Sign out error:', error)
             setIsSigningOut(false)
         }
     }
 
+    const copyInviteLink = (studioId: string, inviteCode: string) => {
+        const inviteUrl = `${window.location.origin}/invite/${inviteCode}`
+        navigator.clipboard.writeText(inviteUrl)
+        setCopiedId(studioId)
+        setTimeout(() => setCopiedId(null), 2000)
+    }
+
     const studios: Studio[] = data?.studios || []
+
+    if (!session && !isPending) return null
 
     if (isPending) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <p className="text-gray-600">Loading session...</p>
+            <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-app)' }}>
+                <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full animate-spin" />
+                    <span style={{ color: 'var(--color-text-muted)' }}>Loading...</span>
+                </div>
             </div>
         )
     }
 
-    if (!session) {
-        return null
-    }
-
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="flex justify-between items-center">
-                        <h1 className="text-3xl font-bold text-gray-900">Streamside</h1>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-600">{session?.user?.email}</span>
-                            <button
-                                onClick={handleSignOut}
-                                disabled={isSigningOut}
-                                className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
-                            >
-                                {isSigningOut ? 'Signing out...' : 'Sign out'}
-                            </button>
-                        </div>
-                    </div>
+        <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg-app)' }}>
+            {/* Top Bar */}
+            <header
+                className="h-12 flex items-center justify-between px-5"
+                style={{
+                    backgroundColor: 'var(--color-bg-subtle)',
+                    borderBottom: '1px solid var(--color-border-subtle)',
+                }}
+            >
+                <div className="flex items-center gap-2">
+                    <IconVideo size={18} stroke={1.5} style={{ color: 'var(--color-text-muted)' }} />
+                    <span className="font-medium text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                        Streamside
+                    </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        {session?.user?.name || session?.user?.email}
+                    </span>
+                    <button
+                        onClick={handleSignOut}
+                        disabled={isSigningOut}
+                        className="h-7 px-2.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5"
+                        style={{
+                            backgroundColor: 'transparent',
+                            border: '1px solid var(--color-border-subtle)',
+                            color: 'var(--color-text-muted)',
+                        }}
+                    >
+                        <IconLogout size={14} stroke={1.5} />
+                        {isSigningOut ? '...' : 'Sign out'}
+                    </button>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Main Content */}
+            <main className="max-w-4xl mx-auto px-5 py-8">
+                {/* Page Header */}
+                <div className="mb-6">
+                    <h1 className="text-lg font-semibold mb-0.5" style={{ color: 'var(--color-text-primary)' }}>
+                        Studios
+                    </h1>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        Create and manage recording studios
+                    </p>
+                </div>
+
                 {/* Create Studio Form */}
-                <div className="bg-white shadow rounded-lg p-6 mb-8">
-                    <h2 className="text-xl font-semibold mb-4">Create New Studio</h2>
-                    <form onSubmit={createStudio} className="flex gap-4">
+                <form
+                    onSubmit={handleCreateStudio}
+                    className="p-4 rounded-lg mb-6"
+                    style={{
+                        backgroundColor: 'var(--color-bg-raised)',
+                        border: '1px solid var(--color-border-subtle)',
+                    }}
+                >
+                    <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="Studio name"
+                            placeholder="New studio name..."
                             value={newStudioName}
                             onChange={(e) => setNewStudioName(e.target.value)}
-                            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-4 py-2 border"
+                            className="flex-1 h-8 px-3 rounded-md text-sm"
+                            style={{
+                                backgroundColor: 'var(--color-bg-sunken)',
+                                border: '1px solid var(--color-border-subtle)',
+                                color: 'var(--color-text-primary)',
+                            }}
                         />
                         <button
                             type="submit"
                             disabled={isCreating || !newStudioName.trim()}
-                            className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                            className="h-8 px-3 rounded-md text-xs font-medium transition-all disabled:opacity-40"
+                            style={{
+                                backgroundColor: 'var(--color-accent-base)',
+                                color: '#fff',
+                            }}
                         >
-                            {isCreating ? 'Creating...' : 'Create Studio'}
+                            {isCreating ? '...' : 'Create'}
                         </button>
-                    </form>
-                </div>
+                    </div>
+                </form>
 
                 {/* Studios List */}
-                <div>
-                    <h2 className="text-2xl font-bold mb-4">Your Studios</h2>
-
-                    {isLoading ? (
-                        <p className="text-gray-600">Loading studios...</p>
-                    ) : studios.length === 0 ? (
-                        <div className="bg-white shadow rounded-lg p-8 text-center">
-                            <p className="text-gray-500">No studios yet. Create one to get started!</p>
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="flex items-center gap-3">
+                            <div className="w-4 h-4 border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full animate-spin" />
+                            <span style={{ color: 'var(--color-text-muted)' }}>Loading...</span>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {studios.map((studio) => (
+                    </div>
+                ) : studios.length === 0 ? (
+                    <div
+                        className="py-16 text-center rounded-lg"
+                        style={{
+                            backgroundColor: 'var(--color-bg-raised)',
+                            border: '1px solid var(--color-border-subtle)',
+                        }}
+                    >
+                        <IconVideo size={32} stroke={1} style={{ color: 'var(--color-text-subtle)', margin: '0 auto 12px' }} />
+                        <h3 className="font-medium text-sm mb-0.5" style={{ color: 'var(--color-text-primary)' }}>
+                            No studios yet
+                        </h3>
+                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                            Create your first studio above
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {studios.map((studio) => (
+                            <div
+                                key={studio.id}
+                                className="p-4 rounded-lg"
+                                style={{
+                                    backgroundColor: 'var(--color-bg-raised)',
+                                    border: '1px solid var(--color-border-subtle)',
+                                }}
+                            >
+                                <div className="flex items-start justify-between mb-3">
+                                    <div>
+                                        <h3 className="font-medium text-sm mb-0.5" style={{ color: 'var(--color-text-primary)' }}>
+                                            {studio.name}
+                                        </h3>
+                                        <p className="text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                                            {new Date(studio.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <span
+                                        className="px-2 py-0.5 text-xs rounded"
+                                        style={{
+                                            backgroundColor: 'var(--color-bg-overlay)',
+                                            color: 'var(--color-text-muted)',
+                                        }}
+                                    >
+                                        {studio.recordings.length} rec
+                                    </span>
+                                </div>
+
+                                {/* Invite Link */}
                                 <div
-                                    key={studio.id}
-                                    className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                                    onClick={() => router.push(`/studio/${studio.id}`)}
+                                    className="flex items-center gap-2 p-2 rounded-md mb-3"
+                                    style={{ backgroundColor: 'var(--color-bg-sunken)' }}
                                 >
-                                    <h3 className="text-lg font-semibold mb-2">{studio.name}</h3>
-                                    {studio.description && (
-                                        <p className="text-sm text-gray-600 mb-4">{studio.description}</p>
-                                    )}
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${studio.inviteCode}`}
+                                        className="flex-1 text-xs bg-transparent border-none outline-none"
+                                        style={{ color: 'var(--color-text-muted)' }}
+                                    />
+                                    <button
+                                        onClick={() => copyInviteLink(studio.id, studio.inviteCode)}
+                                        className="h-6 w-6 rounded flex items-center justify-center transition-colors"
+                                        style={{
+                                            backgroundColor: 'var(--color-bg-overlay)',
+                                            color: copiedId === studio.id ? 'var(--color-text-success)' : 'var(--color-text-muted)',
+                                        }}
+                                    >
+                                        {copiedId === studio.id ? (
+                                            <IconCheck size={14} stroke={1.5} />
+                                        ) : (
+                                            <IconCopy size={14} stroke={1.5} />
+                                        )}
+                                    </button>
+                                </div>
 
-                                    <div className="mb-4">
-                                        <p className="text-xs text-gray-500 mb-1">Invite Code:</p>
-                                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                            {studio.inviteCode}
-                                        </code>
-                                    </div>
-
-                                    <div className="border-t pt-4">
-                                        <p className="text-sm text-gray-600">
-                                            {studio.recordings.length} recording{studio.recordings.length !== 1 ? 's' : ''}
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            Created {new Date(studio.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-
-                                    <button className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                                {/* Actions */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => router.push(`/studio/${studio.id}/recordings`)}
+                                        className="flex-1 h-8 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                                        style={{
+                                            backgroundColor: 'var(--color-bg-overlay)',
+                                            border: '1px solid var(--color-border-subtle)',
+                                            color: 'var(--color-text-secondary)',
+                                        }}
+                                    >
+                                        <IconPlayerRecord size={14} stroke={1.5} />
+                                        Recordings
+                                    </button>
+                                    <button
+                                        onClick={() => router.push(`/studio/${studio.id}`)}
+                                        className="flex-1 h-8 rounded-md text-xs font-medium transition-all"
+                                        style={{
+                                            backgroundColor: 'var(--color-accent-base)',
+                                            color: '#fff',
+                                        }}
+                                    >
                                         Enter Studio
                                     </button>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </main>
         </div>
     )

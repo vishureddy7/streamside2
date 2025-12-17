@@ -17,6 +17,11 @@ export const auth = betterAuth({
         requireEmailVerification: false,
         autoSignIn: true,
     },
+    google: {
+        enabled: true,
+        requireEmailVerification: false,
+        autoSignIn: true,
+    },
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
         ? {
             socialProviders: {

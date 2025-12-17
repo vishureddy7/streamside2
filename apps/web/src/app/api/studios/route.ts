@@ -23,7 +23,13 @@ export async function GET(req: NextRequest) {
             where: {
                 hostId: session.user.id,
             },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                inviteCode: true,
+                isActive: true,
+                createdAt: true,
                 recordings: {
                     select: {
                         id: true,

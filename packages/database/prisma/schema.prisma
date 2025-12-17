@@ -88,6 +88,7 @@ model Studio {
     id          String   @id @default(cuid())
     name        String
     description String?
+    inviteCode  String   @unique @default(cuid())
     hostId      String
     isActive    Boolean  @default(true)
     createdAt   DateTime @default(now())
@@ -97,6 +98,7 @@ model Studio {
     recordings Recording[]
 
     @@index([hostId])
+    @@index([inviteCode])
 }
 
 model Recording {

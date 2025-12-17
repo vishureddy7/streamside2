@@ -12,12 +12,7 @@
     "LIVEKIT_API_KEY",
     "LIVEKIT_API_SECRET",
     "NEXT_PUBLIC_LIVEKIT_WS_URL",
-    "MINIO_ENDPOINT",
-    "MINIO_PORT",
-    "MINIO_ACCESS_KEY",
-    "MINIO_SECRET_KEY",
-    "MINIO_BUCKET_NAME",
-    "MINIO_USE_SSL",
+    "NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED",
     "REDIS_URL",
     "NEXT_PUBLIC_APP_URL"
   ],
@@ -45,6 +40,9 @@
       "cache": false
     },
     "db:push": {
+      "cache": false
+    },
+    "db:push:force": {
       "cache": false
     },
     "db:studio": {

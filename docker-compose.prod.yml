@@ -1,0 +1,115 @@
+version: '3.8'
+
+# Production Docker Compose for Streamside
+# Usage: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: streamside-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: streamside
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-streamside_prod_password}
+      POSTGRES_DB: streamside
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U streamside']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamside-network
+
+  # Redis for sessions and LiveKit
+  redis:
+    image: redis:7-alpine
+    container_name: streamside-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - streamside-network
+
+  # LiveKit SFU Server
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: streamside-livekit
+    restart: unless-stopped
+    ports:
+      - '7882:7882/udp'  # RTC (UDP) - must be exposed directly
+    environment:
+      LIVEKIT_KEYS: ${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      LIVEKIT_REDIS_HOST: redis:6379
+    volumes:
+      - ./livekit.prod.yaml:/etc/livekit.yaml
+    command: --config /etc/livekit.yaml
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - streamside-network
+
+  # Next.js Web Application
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: streamside-web
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://streamside:${POSTGRES_PASSWORD:-streamside_prod_password}@postgres:5432/streamside
+      DIRECT_URL: postgresql://streamside:${POSTGRES_PASSWORD:-streamside_prod_password}@postgres:5432/streamside
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${APP_URL}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_WS_URL: ${LIVEKIT_WS_URL}
+      NEXT_PUBLIC_LIVEKIT_WS_URL: ${LIVEKIT_WS_URL}
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_URL: ${APP_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+    networks:
+      - streamside-network
+
+  # Caddy Reverse Proxy (Auto SSL)
+  caddy:
+    image: caddy:2-alpine
+    container_name: streamside-caddy
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - livekit
+    networks:
+      - streamside-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  streamside-network:
+    driver: bridge

@@ -3,44 +3,45 @@
 import { Suspense, useEffect, useState, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { authClient, useSession } from '@/lib/auth-client'
+import { IconVideo, IconBrandGoogle } from '@tabler/icons-react'
 
 type AuthMode = 'signin' | 'signup'
 
 const MIN_PASSWORD_LENGTH = 8
 
-const googleIcon = (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-        <path
-            fill="currentColor"
-            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-        />
-        <path
-            fill="currentColor"
-            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-        />
-        <path
-            fill="currentColor"
-            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-        />
-        <path
-            fill="currentColor"
-            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-        />
-    </svg>
-)
+function getErrorMessage(error: unknown): { message: string; suggestSignup?: boolean } {
+    let msg = 'Something went wrong. Please try again.'
 
-function getErrorMessage(error: unknown) {
-    if (typeof error === 'string') return error
-    if (error && typeof error === 'object') {
+    if (typeof error === 'string') {
+        msg = error
+    } else if (error && typeof error === 'object') {
         if ('message' in error && typeof error.message === 'string') {
-            return error.message
+            msg = error.message
         }
         if ('data' in error && error.data && typeof error.data === 'object' && 'message' in error.data) {
             const data = error.data as { message?: string }
-            if (typeof data.message === 'string') return data.message
+            if (typeof data.message === 'string') msg = data.message
+        }
+        if ('code' in error && typeof error.code === 'string') {
+            const code = error.code as string
+            if (code === 'USER_NOT_FOUND' || code === 'INVALID_EMAIL_OR_PASSWORD') {
+                return {
+                    message: "No account found with this email. Please sign up first!",
+                    suggestSignup: true
+                }
+            }
         }
     }
-    return 'Something went wrong. Please try again.'
+
+    const lowerMsg = msg.toLowerCase()
+    if (lowerMsg.includes('user not found') || lowerMsg.includes('no user') || lowerMsg.includes('invalid email or password')) {
+        return {
+            message: "No account found with this email. Please sign up first!",
+            suggestSignup: true
+        }
+    }
+
+    return { message: msg }
 }
 
 function fallbackName(email: string) {
@@ -56,7 +57,7 @@ function SignInForm() {
     const [rememberMe, setRememberMe] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [error, setError] = useState<{ message: string; suggestSignup?: boolean } | null>(null)
     const router = useRouter()
     const searchParams = useSearchParams()
     const { data: session, isPending } = useSession()
@@ -125,139 +126,231 @@ function SignInForm() {
 
     if (isPending && !session) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100">
-                <p className="text-gray-700">Checking your session...</p>
+            <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-app)' }}>
+                <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full animate-spin" />
+                    <span style={{ color: 'var(--color-text-muted)' }}>Loading...</span>
+                </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100">
-            <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        {mode === 'signin' ? 'Welcome back' : 'Create your account'}
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-600">
+        <div
+            className="min-h-screen flex items-center justify-center p-4"
+            style={{ backgroundColor: 'var(--color-bg-app)' }}
+        >
+            <div
+                className="relative w-full max-w-sm p-8 rounded-xl"
+                style={{
+                    backgroundColor: 'var(--color-bg-raised)',
+                    border: '1px solid var(--color-border-subtle)',
+                }}
+            >
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <IconVideo
+                        size={28}
+                        stroke={1.5}
+                        style={{ color: 'var(--color-text-muted)', margin: '0 auto 12px' }}
+                    />
+                    <h1
+                        className="text-lg font-semibold mb-1"
+                        style={{ color: 'var(--color-text-primary)' }}
+                    >
+                        {mode === 'signin' ? 'Sign in' : 'Create account'}
+                    </h1>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                         {mode === 'signin'
-                            ? 'Sign in to start recording high-quality sessions'
-                            : 'Spin up an account to launch your first studio'}
+                            ? 'Continue to Streamside'
+                            : 'Get started with recording'}
                     </p>
                 </div>
 
+                {/* Error Display */}
                 {error && (
-                    <div className="rounded-md bg-red-50 p-4 text-sm text-red-700 border border-red-200">
-                        {error}
+                    <div
+                        className="mb-5 p-3 rounded-lg text-xs"
+                        style={{
+                            backgroundColor: 'rgba(255, 82, 97, 0.08)',
+                            border: '1px solid rgba(255, 82, 97, 0.15)',
+                            color: 'var(--color-text-danger)',
+                        }}
+                    >
+                        <p>{error.message}</p>
+                        {error.suggestSignup && mode === 'signin' && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMode('signup')
+                                    resetError()
+                                }}
+                                className="mt-2 font-medium underline hover:no-underline"
+                                style={{ color: 'var(--color-accent-base)' }}
+                            >
+                                Create an account →
+                            </button>
+                        )}
                     </div>
                 )}
 
-                <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {mode === 'signup' && (
                         <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                                Full name
+                            <label
+                                htmlFor="name"
+                                className="block text-xs font-medium mb-1.5"
+                                style={{ color: 'var(--color-text-muted)' }}
+                            >
+                                Name
                             </label>
                             <input
                                 id="name"
-                                name="name"
                                 type="text"
                                 autoComplete="name"
-                                className="mt-1 appearance-none rounded-md block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                 placeholder="Jane Creator"
                                 value={name}
-                                onChange={(event) => setName(event.target.value)}
+                                onChange={(e) => setName(e.target.value)}
                                 onFocus={resetError}
+                                className="w-full h-9 px-3 rounded-lg text-sm"
+                                style={{
+                                    backgroundColor: 'var(--color-bg-sunken)',
+                                    border: '1px solid var(--color-border-subtle)',
+                                    color: 'var(--color-text-primary)',
+                                }}
                             />
                         </div>
                     )}
 
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                            Email address
+                        <label
+                            htmlFor="email"
+                            className="block text-xs font-medium mb-1.5"
+                            style={{ color: 'var(--color-text-muted)' }}
+                        >
+                            Email
                         </label>
                         <input
                             id="email"
-                            name="email"
                             type="email"
                             autoComplete="email"
                             required
-                            className="mt-1 appearance-none rounded-md block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="you@example.com"
                             value={email}
-                            onChange={(event) => setEmail(event.target.value)}
+                            onChange={(e) => setEmail(e.target.value)}
                             onFocus={resetError}
+                            className="w-full h-9 px-3 rounded-lg text-sm"
+                            style={{
+                                backgroundColor: 'var(--color-bg-sunken)',
+                                border: '1px solid var(--color-border-subtle)',
+                                color: 'var(--color-text-primary)',
+                            }}
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                        <label
+                            htmlFor="password"
+                            className="block text-xs font-medium mb-1.5"
+                            style={{ color: 'var(--color-text-muted)' }}
+                        >
                             Password
                         </label>
                         <input
                             id="password"
-                            name="password"
                             type="password"
                             autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                             required
-                            className="mt-1 appearance-none rounded-md block w-full px-3 py-2 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="••••••••"
                             value={password}
-                            onChange={(event) => setPassword(event.target.value)}
+                            onChange={(e) => setPassword(e.target.value)}
                             onFocus={resetError}
+                            className="w-full h-9 px-3 rounded-lg text-sm"
+                            style={{
+                                backgroundColor: 'var(--color-bg-sunken)',
+                                border: '1px solid var(--color-border-subtle)',
+                                color: 'var(--color-text-primary)',
+                            }}
                         />
-                        <p className="mt-1 text-xs text-gray-500">Use at least {MIN_PASSWORD_LENGTH} characters.</p>
+                        <p className="mt-1 text-xs" style={{ color: 'var(--color-text-subtle)' }}>
+                            Min. {MIN_PASSWORD_LENGTH} characters
+                        </p>
                     </div>
 
-                    <label className="flex items-center space-x-2 text-sm text-gray-600">
+                    <label className="flex items-center gap-2 cursor-pointer">
                         <input
                             type="checkbox"
                             checked={rememberMe}
-                            onChange={(event) => setRememberMe(event.target.checked)}
-                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded"
+                            style={{ accentColor: 'var(--color-accent-base)' }}
                         />
-                        <span>Keep me signed in on this device</span>
+                        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                            Keep me signed in
+                        </span>
                     </label>
 
                     <button
                         type="submit"
                         disabled={!canSubmit}
-                        className="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                        className="w-full h-9 rounded-lg font-medium text-sm transition-all disabled:opacity-40"
+                        style={{
+                            backgroundColor: 'var(--color-accent-base)',
+                            color: '#fff',
+                        }}
                     >
-                        {isSubmitting ? 'Working...' : mode === 'signin' ? 'Sign in with email' : 'Create account'}
+                        {isSubmitting ? 'Working...' : mode === 'signin' ? 'Sign in' : 'Create account'}
                     </button>
                 </form>
 
-                <div className="mt-6">
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-gray-200" />
+                {/* Google OAuth */}
+                {process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === 'true' && (
+                    <>
+                        <div className="relative my-5">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full" style={{ borderTop: '1px solid var(--color-border-subtle)' }} />
+                            </div>
+                            <div className="relative flex justify-center">
+                                <span
+                                    className="px-2 text-xs"
+                                    style={{
+                                        backgroundColor: 'var(--color-bg-raised)',
+                                        color: 'var(--color-text-subtle)',
+                                    }}
+                                >
+                                    or
+                                </span>
+                            </div>
                         </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                        </div>
-                    </div>
 
-                    <div className="mt-6">
                         <button
                             onClick={handleGoogleSignIn}
                             disabled={isGoogleLoading}
-                            className="w-full inline-flex justify-center items-center gap-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                            className="w-full h-9 rounded-lg text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                            style={{
+                                backgroundColor: 'transparent',
+                                border: '1px solid var(--color-border-subtle)',
+                                color: 'var(--color-text-secondary)',
+                            }}
                         >
-                            {googleIcon}
-                            <span>{isGoogleLoading ? 'Connecting…' : 'Google'}</span>
+                            <IconBrandGoogle size={16} stroke={1.5} />
+                            {isGoogleLoading ? 'Connecting...' : 'Continue with Google'}
                         </button>
-                    </div>
-                </div>
+                    </>
+                )}
 
-                <p className="text-center text-sm text-gray-600">
-                    {mode === 'signin' ? 'Need an account?' : 'Already have an account?'}{' '}
+                {/* Toggle mode */}
+                <p className="text-center text-xs mt-6" style={{ color: 'var(--color-text-muted)' }}>
+                    {mode === 'signin' ? "No account?" : 'Have an account?'}{' '}
                     <button
                         type="button"
                         onClick={() => {
-                            setMode((prev) => (prev === 'signin' ? 'signup' : 'signin'))
+                            setMode(mode === 'signin' ? 'signup' : 'signin')
                             resetError()
                         }}
-                        className="font-semibold text-indigo-600 hover:text-indigo-500"
+                        className="font-medium hover:underline"
+                        style={{ color: 'var(--color-accent-base)' }}
                     >
                         {mode === 'signin' ? 'Sign up' : 'Sign in'}
                     </button>
@@ -269,8 +362,14 @@ function SignInForm() {
 
 function LoadingFallback() {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100">
-            <p className="text-gray-700">Loading...</p>
+        <div
+            className="min-h-screen flex items-center justify-center"
+            style={{ backgroundColor: 'var(--color-bg-app)' }}
+        >
+            <div className="flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full animate-spin" />
+                <span style={{ color: 'var(--color-text-muted)' }}>Loading...</span>
+            </div>
         </div>
     )
 }

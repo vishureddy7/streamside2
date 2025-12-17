@@ -13,6 +13,7 @@
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:push": "turbo db:push",
+    "db:push:force": "turbo db:push:force",
     "db:studio": "turbo db:studio",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",

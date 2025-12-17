@@ -3,6 +3,8 @@
  * 
  * Uses @prisma/adapter-pg with a native pg Pool for Supabase PostgreSQL.
  * This is the recommended approach for Prisma 7+ with serverless/edge environments.
+ * 
+ * Note: Environment variables are loaded by next.config.js from the monorepo root.
  */
 
 import { Pool } from 'pg'
