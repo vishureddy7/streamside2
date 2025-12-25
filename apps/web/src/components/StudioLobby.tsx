@@ -12,6 +12,8 @@ import {
   Check,
 } from 'lucide-react';
 
+import { useEffect, useRef } from 'react';
+
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -91,6 +93,118 @@ export default function StudioLobbyUI(props: StudioLobbyUIProps) {
     onJoin,
   } = props;
 
+  /* ✅ REAL MEDIA LOGIC (NO UI CHANGE) */
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function startPreview() {
+      // Stop any existing stream first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop())
+        streamRef.current = null
+      }
+
+      if (!videoEnabled && !audioEnabled) return
+
+      const tracks: MediaStreamTrack[] = []
+
+      // Request video and audio SEPARATELY to handle missing devices gracefully
+      // If we request both together and one is missing, the entire call fails
+
+      // Get video stream
+      if (videoEnabled) {
+        try {
+          let videoConstraints: boolean | MediaTrackConstraints = true
+          if (selectedCamera && selectedCamera.length > 0) {
+            videoConstraints = { deviceId: { exact: selectedCamera } }
+          }
+
+          const videoStream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints,
+            audio: false,
+          })
+
+          if (!isMounted) {
+            videoStream.getTracks().forEach(t => t.stop())
+            return
+          }
+
+          tracks.push(...videoStream.getVideoTracks())
+        } catch (videoErr) {
+          console.warn('Video stream failed:', videoErr)
+
+          // Fallback: try without specific device
+          try {
+            const fallbackVideoStream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: false,
+            })
+            if (isMounted) {
+              tracks.push(...fallbackVideoStream.getVideoTracks())
+            } else {
+              fallbackVideoStream.getTracks().forEach(t => t.stop())
+            }
+          } catch (fallbackVideoErr) {
+            console.warn('Video fallback also failed:', fallbackVideoErr)
+          }
+        }
+      }
+
+      // Get audio stream separately (so video still works even if no mic)
+      if (audioEnabled && isMounted) {
+        try {
+          let audioConstraints: boolean | MediaTrackConstraints = true
+          if (selectedMicrophone && selectedMicrophone.length > 0) {
+            audioConstraints = { deviceId: { exact: selectedMicrophone } }
+          }
+
+          const audioStream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: audioConstraints,
+          })
+
+          if (!isMounted) {
+            audioStream.getTracks().forEach(t => t.stop())
+            return
+          }
+
+          tracks.push(...audioStream.getAudioTracks())
+        } catch (audioErr) {
+          // Audio failure is non-fatal - camera should still work
+          console.warn('Audio stream failed (non-fatal):', audioErr)
+        }
+      }
+
+      if (!isMounted) {
+        tracks.forEach(t => t.stop())
+        return
+      }
+
+      // Combine all tracks into a single stream
+      if (tracks.length > 0) {
+        const combinedStream = new MediaStream(tracks)
+        streamRef.current = combinedStream
+
+        if (videoRef.current && videoEnabled) {
+          videoRef.current.srcObject = combinedStream
+          videoRef.current.play().catch(err => {
+            console.warn('Video play failed:', err)
+          })
+        }
+      }
+    }
+
+    startPreview()
+
+    return () => {
+      isMounted = false
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, [selectedCamera, selectedMicrophone, videoEnabled, audioEnabled])
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -105,13 +219,11 @@ export default function StudioLobbyUI(props: StudioLobbyUIProps) {
           </button>
 
           <div className="flex items-center gap-2">
-            <Video className="size-6 text-primary" />
-            <span className="text-lg">{studioName}</span>
+            <span className="text-lg font-semibold">{studioName}</span>
           </div>
 
-          <Button variant="ghost" size="icon" onClick={onSettings}>
-            <Settings className="size-5" />
-          </Button>
+          {/* Spacer to maintain centered layout */}
+          <div className="w-24" />
         </div>
       </nav>
 
@@ -120,14 +232,21 @@ export default function StudioLobbyUI(props: StudioLobbyUIProps) {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardContent className="p-0">
-              <div className="aspect-video bg-muted relative">
+              <div className="aspect-video bg-muted relative overflow-hidden">
                 {videoEnabled ? (
-                  <div className="size-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-                    <Video className="size-24 text-primary/40" />
+                  <>
+                    {/* ✅ REAL CAMERA PREVIEW */}
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
                     <div className="absolute bottom-4 left-4 bg-background/80 px-3 py-1.5 rounded-lg">
                       You
                     </div>
-                  </div>
+                  </>
                 ) : (
                   <div className="size-full flex items-center justify-center">
                     <VideoOff className="size-16 text-muted-foreground" />

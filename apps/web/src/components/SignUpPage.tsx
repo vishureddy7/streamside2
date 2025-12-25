@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Video, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { Video, Mail, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -19,6 +19,7 @@ import {
 import { Alert, AlertDescription } from './ui/alert';
 import { Checkbox } from './ui/checkbox';
 import { ThemeToggle } from './ThemeToggle';
+import { signUp } from '@/lib/auth-client';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -27,15 +28,19 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [error, setError] = useState('');
+  const [emailExists, setEmailExists] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailExists(false);
 
-    // Frontend validation (unchanged)
+    // Frontend validation
     if (!name || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
@@ -59,26 +64,61 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+      const result = await signUp.email({
+        name,
+        email,
+        password,
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message || 'Registration failed');
+      console.log('Signup result:', result);
+
+      // BetterAuth can return error in different ways
+      const signUpError = result?.error;
+
+      if (signUpError) {
+        console.log('Signup error:', signUpError);
+        // Handle specific BetterAuth error codes for existing users
+        const errorCode = signUpError.code?.toLowerCase() || '';
+        const errorMsg = signUpError.message?.toLowerCase() || '';
+        const errorStatus = signUpError.status;
+
+        // Check for user already exists by various indicators
+        if (
+          errorCode === 'user_already_exists' ||
+          errorCode.includes('exist') ||
+          errorMsg.includes('already exists') ||
+          errorMsg.includes('already registered') ||
+          errorMsg.includes('email is already') ||
+          errorMsg.includes('user with this email') ||
+          errorStatus === 422
+        ) {
+          setEmailExists(true);
+        } else {
+          setError(signUpError.message || 'Registration failed');
+        }
+        return;
       }
 
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during registration');
+      // Success - redirect to dashboard
+      if (result?.data) {
+        router.push('/dashboard');
+      } else {
+        // Edge case - no data and no error
+        setError('Registration failed. Please try again.');
+      }
+    } catch (err: unknown) {
+      console.error('Signup exception:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      // Also check caught errors for "already exists" patterns
+      if (
+        errorMessage.toLowerCase().includes('already') ||
+        errorMessage.toLowerCase().includes('exist') ||
+        errorMessage.includes('422')
+      ) {
+        setEmailExists(true);
+      } else {
+        setError(errorMessage || 'An error occurred during registration');
+      }
     } finally {
       setLoading(false);
     }
@@ -120,7 +160,31 @@ export default function SignUpPage() {
           </CardHeader>
 
           <CardContent>
-            {error && (
+            {emailExists && (
+              <Alert className="mb-4 border-amber-500/50 bg-amber-500/10">
+                <AlertCircle className="size-4 text-amber-500" />
+                <AlertDescription className="text-amber-700 dark:text-amber-400">
+                  <span className="font-medium">This email is already registered.</span>
+                  <br />
+                  <span className="text-sm">
+                    Please sign in to your existing account or use a different email.
+                  </span>
+                  <div className="mt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push('/auth/signin')}
+                      className="border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+                    >
+                      Sign in to existing account
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {error && !emailExists && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="size-4" />
                 <AlertDescription>{error}</AlertDescription>
@@ -166,13 +230,25 @@ export default function SignUpPage() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Must be at least 8 characters
@@ -185,13 +261,25 @@ export default function SignUpPage() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -199,8 +287,8 @@ export default function SignUpPage() {
                 <Checkbox
                   id="terms"
                   checked={agreeToTerms}
-                  onCheckedChange={(checked) =>
-                    setAgreeToTerms(checked as boolean)
+                  onCheckedChange={(checked: boolean | 'indeterminate') =>
+                    setAgreeToTerms(checked === true)
                   }
                 />
                 <label

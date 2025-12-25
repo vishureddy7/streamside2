@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Video, 
-  Plus, 
-  Calendar, 
-  Link2, 
-  Clock, 
-  Settings, 
-  LogOut, 
+import {
+  Video,
+  Plus,
+  Calendar,
+  Link2,
+  Clock,
+  Settings,
+  LogOut,
   User,
   Play,
   Users,
@@ -86,14 +86,14 @@ export default function ImprovedDashboard() {
 
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              
+
               <div className="relative group">
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar className="size-8">
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
                 </Button>
-                
+
                 {/* Dropdown */}
                 <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   <div className="p-2">
@@ -135,13 +135,13 @@ export default function ImprovedDashboard() {
         {/* Main Actions Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12 auto-rows-[180px]">
           {/* Start Instant Meeting - Large Primary Action */}
-          <Card 
+          <Card
             onClick={handleQuickStart}
-            className="md:col-span-2 md:row-span-2 group hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-gradient-to-br from-primary/10 via-background to-background dark:from-primary/5 border-primary/30"
+            className="md:col-span-2 md:row-span-2 cursor-pointer border-primary/30"
           >
             <CardContent className="p-8 h-full flex flex-col justify-between">
               <div>
-                <div className="size-16 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <div className="size-16 rounded-2xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-6">
                   <Video className="size-8 text-primary" />
                 </div>
                 <h3 className="text-2xl mb-3">Start Instant Meeting</h3>
@@ -159,11 +159,11 @@ export default function ImprovedDashboard() {
           </Card>
 
           {/* Join with Code */}
-          <Card className="md:col-span-2 md:row-span-1 group hover:shadow-lg hover:scale-[1.02] transition-all duration-300 bg-gradient-to-br from-blue-500/10 via-background to-background dark:from-blue-500/5 border-blue-500/20">
+          <Card className="md:col-span-2 md:row-span-1 border-primary/20">
             <CardContent className="p-6 h-full flex flex-col justify-between">
               <div className="flex items-start gap-4">
-                <div className="size-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                  <Link2 className="size-6 text-blue-600 dark:text-blue-400" />
+                <div className="size-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Link2 className="size-6 text-primary" />
                 </div>
                 <div className="flex-1">
                   <h3 className="mb-3">Join with Code</h3>
@@ -183,13 +183,13 @@ export default function ImprovedDashboard() {
           </Card>
 
           {/* Schedule Meeting */}
-          <Card 
+          <Card
             onClick={handleSchedule}
-            className="md:col-span-1 md:row-span-1 group hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-gradient-to-br from-green-500/10 via-background to-background dark:from-green-500/5 border-green-500/20"
+            className="md:col-span-1 md:row-span-1 cursor-pointer border-primary/20"
           >
             <CardContent className="p-6 h-full flex flex-col justify-between">
-              <div className="size-12 rounded-xl bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <Calendar className="size-6 text-green-600 dark:text-green-400" />
+              <div className="size-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-4">
+                <Calendar className="size-6 text-primary" />
               </div>
               <div>
                 <h3 className="mb-2">Schedule</h3>
@@ -201,13 +201,13 @@ export default function ImprovedDashboard() {
           </Card>
 
           {/* New Meeting Room */}
-          <Card 
+          <Card
             onClick={() => navigate('/studio/new')}
-            className="md:col-span-1 md:row-span-1 group hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-pointer bg-gradient-to-br from-purple-500/10 via-background to-background dark:from-purple-500/5 border-purple-500/20"
+            className="md:col-span-1 md:row-span-1 cursor-pointer border-primary/20"
           >
             <CardContent className="p-6 h-full flex flex-col justify-between">
-              <div className="size-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                <Plus className="size-6 text-purple-600 dark:text-purple-400" />
+              <div className="size-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-4">
+                <Plus className="size-6 text-primary" />
               </div>
               <div>
                 <h3 className="mb-2">New Room</h3>
@@ -313,7 +313,7 @@ export default function ImprovedDashboard() {
                       </div>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     variant={studio.status === 'active' ? 'default' : 'outline'}
                     className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                   >
